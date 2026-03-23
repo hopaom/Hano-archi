@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HanopaLer - AI 인허가 사전검토 데모</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', -apple-system, sans-serif; background: #0f1117; color: #e0e0e0; }
+
+  .header { background: linear-gradient(135deg, #1a1d28 0%, #252836 100%); padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2e3142; }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, #4a7cff, #6c5ce7); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: white; font-size: 16px; }
+  .logo-text { font-size: 20px; font-weight: 700; color: #fff; }
+  .logo-sub { font-size: 11px; color: #8b8fa3; letter-spacing: 1px; }
+  .header-info { display: flex; gap: 24px; font-size: 13px; color: #8b8fa3; }
+  .header-info span { display: flex; align-items: center; gap: 6px; }
+
+  .main { display: flex; height: calc(100vh - 73px); }
+
+  .plan-area { flex: 1; position: relative; background: #1a1d28; overflow: hidden; }
+  .plan-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+
+  svg { filter: drop-shadow(0 4px 20px rgba(0,0,0,0.3)); }
+
+  .sidebar { width: 380px; background: #1e2130; border-left: 1px solid #2e3142; overflow-y: auto; }
+  .sidebar-header { padding: 20px; border-bottom: 1px solid #2e3142; }
+  .sidebar-title { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+  .sidebar-subtitle { font-size: 12px; color: #8b8fa3; }
+
+  .summary-bar { display: flex; gap: 8px; padding: 16px 20px; border-bottom: 1px solid #2e3142; }
+  .summary-item { flex: 1; text-align: center; padding: 10px 8px; border-radius: 8px; background: #252836; }
+  .summary-num { font-size: 22px; font-weight: 800; }
+  .summary-label { font-size: 10px; color: #8b8fa3; margin-top: 2px; }
+  .danger .summary-num { color: #ff4757; }
+  .warning .summary-num { color: #ffa502; }
+  .ok .summary-num { color: #2ed573; }
+
+  .issue-list { padding: 12px; }
+  .issue-card { background: #252836; border-radius: 10px; padding: 16px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
+  .issue-card:hover { border-color: #4a7cff; transform: translateY(-1px); }
+  .issue-card.active { border-color: #ff4757; background: #2a1f2f; }
+
+  .issue-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .severity { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .severity.high { background: #ff4757; box-shadow: 0 0 8px rgba(255,71,87,0.5); }
+  .severity.medium { background: #ffa502; box-shadow: 0 0 8px rgba(255,165,2,0.4); }
+  .severity.low { background: #2ed573; }
+  .issue-title { font-size: 13px; font-weight: 600; color: #fff; }
+
+  .issue-body { font-size: 12px; color: #a0a3b1; line-height: 1.6; }
+  .issue-rule { display: inline-block; background: #1a1d28; color: #4a7cff; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin: 4px 4px 4px 0; font-weight: 600; }
+
+  .trace-chain { margin-top: 10px; padding: 10px; background: #1a1d28; border-radius: 8px; border-left: 3px solid #4a7cff; }
+  .trace-title { font-size: 11px; font-weight: 700; color: #4a7cff; margin-bottom: 6px; letter-spacing: 0.5px; }
+  .trace-step { font-size: 11px; color: #c0c3d1; padding: 2px 0; display: flex; align-items: flex-start; gap: 6px; }
+  .trace-arrow { color: #4a7cff; flex-shrink: 0; }
+
+  .fix-suggestion { margin-top: 8px; padding: 8px 10px; background: rgba(46,213,115,0.08); border-radius: 6px; border: 1px solid rgba(46,213,115,0.2); }
+  .fix-label { font-size: 10px; font-weight: 700; color: #2ed573; margin-bottom: 3px; letter-spacing: 0.5px; }
+  .fix-text { font-size: 11px; color: #a0d9b0; }
+
+  /* Blinking animation for violations */
+  @keyframes pulse-red { 0%,100%{ opacity:0.25; } 50%{ opacity:0.5; } }
+  @keyframes pulse-orange { 0%,100%{ opacity:0.2; } 50%{ opacity:0.4; } }
+  .violation-high { animation: pulse-red 2s ease-in-out infinite; }
+  .violation-medium { animation: pulse-orange 2.5s ease-in-out infinite; }
+
+  /* Tooltip */
+  .plan-label { font-size: 10px; fill: #8b8fa3; font-family: 'Segoe UI', sans-serif; }
+  .plan-label-room { font-size: 11px; fill: #c0c3d1; font-family: 'Segoe UI', sans-serif; font-weight: 600; }
+  .dim-line { stroke: #555; stroke-width: 0.5; stroke-dasharray: 3,3; }
+  .dim-text { font-size: 8px; fill: #888; font-family: 'Segoe UI', sans-serif; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">H</div>
+    <div>
+      <div class="logo-text">HanopaLer</div>
+      <div class="logo-sub">AI PERMIT RISK ENGINE</div>
+    </div>
+  </div>
+  <div class="header-info">
+    <span>근린생활시설 (2종)</span>
+    <span>대지면적: 248.5m2</span>
+    <span>연면적: 496.2m2</span>
+    <span>검토일: 2026.03.24</span>
+  </div>
+</div>
+
+<div class="main">
+  <div class="plan-area">
+    <div class="plan-container">
+      <svg width="620" height="480" viewBox="0 0 620 480">
+        <!-- Background -->
+        <rect x="0" y="0" width="620" height="480" fill="#1a1d28"/>
+
+        <!-- Grid (subtle) -->
+        <defs>
+          <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#252836" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+        <rect x="0" y="0" width="620" height="480" fill="url(#grid)"/>
+
+        <!-- ═══ Building Outline ═══ -->
+        <rect x="60" y="40" width="500" height="400" fill="none" stroke="#4a5568" stroke-width="2.5" rx="2"/>
+
+        <!-- ═══ Rooms ═══ -->
+        <!-- Corridor (문제 영역 - 폭 미달) -->
+        <rect x="230" y="40" width="100" height="400" fill="none" stroke="#4a5568" stroke-width="1.5"/>
+        <!-- VIOLATION HIGHLIGHT - Corridor -->
+        <rect x="230" y="40" width="100" height="400" fill="#ff4757" class="violation-high" rx="2"/>
+
+        <!-- Room 1 - 사무실 1 -->
+        <rect x="60" y="40" width="170" height="200" fill="none" stroke="#4a5568" stroke-width="1.5"/>
+
+        <!-- Room 2 - 사무실 2 -->
+        <rect x="60" y="240" width="170" height="200" fill="none" stroke="#4a5568" stroke-width="1.5"/>
+
+        <!-- Room 3 - 상가 1 -->
+        <rect x="330" y="40" width="230" height="200" fill="none" stroke="#4a5568" stroke-width="1.5"/>
+
+        <!-- Room 4 - 상가 2 -->
+        <rect x="330" y="240" width="230" height="200" fill="none" stroke="#4a5568" stroke-width="1.5"/>
+
+        <!-- Staircase -->
+        <rect x="330" y="160" width="80" height="80" fill="none" stroke="#4a5568" stroke-width="1.5"/>
+        <!-- VIOLATION HIGHLIGHT - Staircase width -->
+        <rect x="330" y="160" width="80" height="80" fill="#ffa502" class="violation-medium" rx="2"/>
+        <!-- Stair lines -->
+        <line x1="335" y1="170" x2="405" y2="170" stroke="#555" stroke-width="0.5"/>
+        <line x1="335" y1="180" x2="405" y2="180" stroke="#555" stroke-width="0.5"/>
+        <line x1="335" y1="190" x2="405" y2="190" stroke="#555" stroke-width="0.5"/>
+        <line x1="335" y1="200" x2="405" y2="200" stroke="#555" stroke-width="0.5"/>
+        <line x1="335" y1="210" x2="405" y2="210" stroke="#555" stroke-width="0.5"/>
+        <line x1="335" y1="220" x2="405" y2="220" stroke="#555" stroke-width="0.5"/>
+        <line x1="335" y1="230" x2="405" y2="230" stroke="#555" stroke-width="0.5"/>
+
+        <!-- Entrance -->
+        <rect x="255" y="430" width="50" height="10" fill="#4a7cff" rx="2"/>
+        <text x="280" y="458" text-anchor="middle" class="plan-label" fill="#4a7cff" font-weight="600">ENTRANCE</text>
+
+        <!-- Door openings -->
+        <!-- Door to Room 1 -->
+        <line x1="230" y1="120" x2="230" y2="155" stroke="#1a1d28" stroke-width="3"/>
+        <path d="M 230 120 Q 210 137 230 155" fill="none" stroke="#6c7a89" stroke-width="0.8" stroke-dasharray="3,2"/>
+        <!-- Door to Room 2 -->
+        <line x1="230" y1="310" x2="230" y2="345" stroke="#1a1d28" stroke-width="3"/>
+        <path d="M 230 310 Q 210 327 230 345" fill="none" stroke="#6c7a89" stroke-width="0.8" stroke-dasharray="3,2"/>
+        <!-- Door to Room 3 -->
+        <line x1="330" y1="80" x2="330" y2="115" stroke="#1a1d28" stroke-width="3"/>
+        <path d="M 330 80 Q 350 97 330 115" fill="none" stroke="#6c7a89" stroke-width="0.8" stroke-dasharray="3,2"/>
+        <!-- Door to Room 4 -->
+        <line x1="330" y1="310" x2="330" y2="345" stroke="#1a1d28" stroke-width="3"/>
+        <path d="M 330 310 Q 350 327 330 345" fill="none" stroke="#6c7a89" stroke-width="0.8" stroke-dasharray="3,2"/>
+
+        <!-- Windows -->
+        <line x1="100" y1="40" x2="170" y2="40" stroke="#4a7cff" stroke-width="3"/>
+        <line x1="100" y1="440" x2="170" y2="440" stroke="#4a7cff" stroke-width="3"/>
+        <line x1="400" y1="40" x2="500" y2="40" stroke="#4a7cff" stroke-width="3"/>
+        <!-- VIOLATION - Window -->
+        <rect x="390" y="430" width="120" height="20" fill="#ffa502" class="violation-medium" rx="2"/>
+        <line x1="400" y1="440" x2="500" y2="440" stroke="#4a7cff" stroke-width="3"/>
+
+        <!-- ═══ Room Labels ═══ -->
+        <text x="145" y="145" text-anchor="middle" class="plan-label-room">사무실 1</text>
+        <text x="145" y="162" text-anchor="middle" class="plan-label">32.5 m2</text>
+
+        <text x="145" y="345" text-anchor="middle" class="plan-label-room">사무실 2</text>
+        <text x="145" y="362" text-anchor="middle" class="plan-label">32.5 m2</text>
+
+        <text x="445" y="125" text-anchor="middle" class="plan-label-room">상가 1</text>
+        <text x="445" y="142" text-anchor="middle" class="plan-label">55.2 m2</text>
+
+        <text x="445" y="345" text-anchor="middle" class="plan-label-room">상가 2</text>
+        <text x="445" y="362" text-anchor="middle" class="plan-label">52.8 m2</text>
+
+        <text x="280" y="225" text-anchor="middle" class="plan-label-room" fill="#ff8a8a">복도</text>
+        <text x="280" y="242" text-anchor="middle" class="plan-label" fill="#ff8a8a">폭: 1.1m</text>
+
+        <text x="370" y="198" text-anchor="middle" class="plan-label-room" fill="#ffc875">계단실</text>
+        <text x="370" y="213" text-anchor="middle" class="plan-label" fill="#ffc875">폭: 1.0m</text>
+
+        <!-- ═══ Dimension Lines ═══ -->
+        <!-- Corridor width dimension -->
+        <line x1="230" y1="25" x2="230" y2="35" class="dim-line"/>
+        <line x1="330" y1="25" x2="330" y2="35" class="dim-line"/>
+        <line x1="233" y1="30" x2="327" y2="30" stroke="#ff4757" stroke-width="1"/>
+        <polygon points="233,28 233,32 230,30" fill="#ff4757"/>
+        <polygon points="327,28 327,32 330,30" fill="#ff4757"/>
+        <rect x="258" y="18" width="44" height="14" rx="3" fill="#ff4757"/>
+        <text x="280" y="28" text-anchor="middle" font-size="9" fill="white" font-family="Segoe UI" font-weight="700">1,100</text>
+
+        <!-- Required dimension -->
+        <text x="280" y="14" text-anchor="middle" font-size="8" fill="#ff8a8a" font-family="Segoe UI">(기준: 1,200 이상)</text>
+
+        <!-- ═══ Violation Markers ═══ -->
+        <!-- Marker 1 - Corridor -->
+        <circle cx="280" cy="270" r="14" fill="#ff4757" opacity="0.9"/>
+        <text x="280" y="274" text-anchor="middle" font-size="12" fill="white" font-weight="800" font-family="Segoe UI">1</text>
+
+        <!-- Marker 2 - Staircase -->
+        <circle cx="370" cy="230" r="14" fill="#ffa502" opacity="0.9"/>
+        <text x="370" y="234" text-anchor="middle" font-size="12" fill="white" font-weight="800" font-family="Segoe UI">2</text>
+
+        <!-- Marker 3 - Window -->
+        <circle cx="450" cy="440" r="14" fill="#ffa502" opacity="0.9"/>
+        <text x="450" y="444" text-anchor="middle" font-size="12" fill="white" font-weight="800" font-family="Segoe UI">3</text>
+
+        <!-- North arrow -->
+        <g transform="translate(575, 60)">
+          <circle cx="0" cy="0" r="18" fill="#252836" stroke="#4a5568" stroke-width="1"/>
+          <polygon points="0,-12 -5,4 0,-2 5,4" fill="#4a7cff"/>
+          <text x="0" y="10" text-anchor="middle" font-size="8" fill="#8b8fa3" font-family="Segoe UI" font-weight="600">N</text>
+        </g>
+
+        <!-- Scale bar -->
+        <g transform="translate(50, 468)">
+          <line x1="0" y1="0" x2="60" y2="0" stroke="#555" stroke-width="1"/>
+          <line x1="0" y1="-3" x2="0" y2="3" stroke="#555" stroke-width="1"/>
+          <line x1="60" y1="-3" x2="60" y2="3" stroke="#555" stroke-width="1"/>
+          <text x="30" y="10" text-anchor="middle" font-size="8" fill="#666" font-family="Segoe UI">3m</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">AI 인허가 사전검토 결과</div>
+      <div class="sidebar-subtitle">HanopaLer Engine v0.1 | 검토 소요시간: 8초</div>
+    </div>
+
+    <div class="summary-bar">
+      <div class="summary-item danger">
+        <div class="summary-num">1</div>
+        <div class="summary-label">위반 (HIGH)</div>
+      </div>
+      <div class="summary-item warning">
+        <div class="summary-num">2</div>
+        <div class="summary-label">주의 (MED)</div>
+      </div>
+      <div class="summary-item ok">
+        <div class="summary-num">14</div>
+        <div class="summary-label">적합 (OK)</div>
+      </div>
+    </div>
+
+    <div class="issue-list">
+      <!-- Issue 1 -->
+      <div class="issue-card active">
+        <div class="issue-header">
+          <div class="severity high"></div>
+          <div class="issue-title">1 복도 유효 폭 미달</div>
+        </div>
+        <div class="issue-body">
+          양측에 거실이 있는 복도의 유효 폭이 기준치에 미달합니다.
+          <br><br>
+          <span class="issue-rule">건축법 시행령 제48조</span>
+          <span class="issue-rule">피난규칙 제15조의2</span>
+
+          <div class="trace-chain">
+            <div class="trace-title">근거 추적 (TRACE)</div>
+            <div class="trace-step"><span class="trace-arrow">></span> 건축물 용도: 근린생활시설 (2종)</div>
+            <div class="trace-step"><span class="trace-arrow">></span> 적용 규정: 피난규칙 제15조의2 제1항</div>
+            <div class="trace-step"><span class="trace-arrow">></span> 대상 객체: 1층 중앙 복도</div>
+            <div class="trace-step"><span class="trace-arrow">></span> 조건: 양측에 거실이 있는 복도</div>
+            <div class="trace-step"><span class="trace-arrow">></span> 기준값: 1,200mm 이상</div>
+            <div class="trace-step"><span class="trace-arrow">></span> <b style="color:#ff4757">현재값: 1,100mm (100mm 미달)</b></div>
+          </div>
+
+          <div class="fix-suggestion">
+            <div class="fix-label">수정 대안</div>
+            <div class="fix-text">복도 폭 +100mm 확장 (양측 벽체 각 50mm 후퇴) 또는 한쪽 거실 벽체 100mm 후퇴</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Issue 2 -->
+      <div class="issue-card">
+        <div class="issue-header">
+          <div class="severity medium"></div>
+          <div class="issue-title">2 계단실 유효 폭 확인 필요</div>
+        </div>
+        <div class="issue-body">
+          계단 및 계단참의 유효 폭이 권장 기준에 미달할 수 있습니다.
+          <br><br>
+          <span class="issue-rule">건축법 시행령 제48조</span>
+          <span class="issue-rule">피난규칙 제15조</span>
+
+          <div class="trace-chain">
+            <div class="trace-title">근거 추적 (TRACE)</div>
+            <div class="trace-step"><span class="trace-arrow">></span> 건축물 용도: 근린생활시설</div>
+            <div class="trace-step"><span class="trace-arrow">></span> 적용 규정: 피난규칙 제15조 제1항</div>
+            <div class="trace-step"><span class="trace-arrow">></span> 대상 객체: 중앙 계단실</div>
+            <div class="trace-step"><span class="trace-arrow">></span> 기준값: 1,200mm 이상 (권장)</div>
+            <div class="trace-step"><span class="trace-arrow">></span> <b style="color:#ffa502">현재값: 1,000mm (확인 필요)</b></div>
+          </div>
+
+          <div class="fix-suggestion">
+            <div class="fix-label">수정 대안</div>
+            <div class="fix-text">계단실 폭 200mm 확장 또는 우회 피난경로 확보 여부 확인</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Issue 3 -->
+      <div class="issue-card">
+        <div class="issue-header">
+          <div class="severity medium"></div>
+          <div class="issue-title">3 채광 면적 확인 필요 (상가2)</div>
+        </div>
+        <div class="issue-body">
+          상가2 남측 개구부의 채광 면적이 바닥면적 대비 기준에 미달할 수 있습니다.
+          <br><br>
+          <span class="issue-rule">건축법 제49조</span>
+          <span class="issue-rule">건축물의 설비기준 등에 관한 규칙 제17조</span>
+
+          <div class="trace-chain">
+            <div class="trace-title">근거 추적 (TRACE)</div>
+            <div class="trace-step"><span class="trace-arrow">></span> 대상 실: 상가2 (52.8m2)</div>
+            <div class="trace-step"><span class="trace-arrow">></span> 기준: 바닥면적의 1/10 이상 = 5.28m2</div>
+            <div class="trace-step"><span class="trace-arrow">></span> <b style="color:#ffa502">남측 창 면적: 약 4.8m2 (추정, 확인 필요)</b></div>
+          </div>
+
+          <div class="fix-suggestion">
+            <div class="fix-label">수정 대안</div>
+            <div class="fix-text">남측 개구부 면적 확대 또는 추가 채광창 설치</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
