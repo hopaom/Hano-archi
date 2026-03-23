@@ -3,333 +3,377 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HanopaLer - AI 인허가 사전검토 데모</title>
+<title>HanopaLer — AI Permit Risk Review</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,300&family=DM+Sans:wght@400;500;600&family=Caveat:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', -apple-system, sans-serif; background: #0f1117; color: #e0e0e0; }
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
 
-  .header { background: linear-gradient(135deg, #1a1d28 0%, #252836 100%); padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2e3142; }
-  .logo { display: flex; align-items: center; gap: 12px; }
-  .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, #4a7cff, #6c5ce7); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: white; font-size: 16px; }
-  .logo-text { font-size: 20px; font-weight: 700; color: #fff; }
-  .logo-sub { font-size: 11px; color: #8b8fa3; letter-spacing: 1px; }
-  .header-info { display: flex; gap: 24px; font-size: 13px; color: #8b8fa3; }
-  .header-info span { display: flex; align-items: center; gap: 6px; }
+  :root{
+    --bg:#EDEDEC;--card:#F4F4F3;
+    --text-primary:#1A1A1A;--text-secondary:#7A7A78;--text-muted:#B5B5B2;
+    --accent:#4A4A48;
+    --shadow:rgba(30,30,28,0.07);--shadow-md:rgba(30,30,28,0.12);
+    --serif:'Source Serif 4','Lora',Georgia,serif;
+    --sans:'DM Sans',system-ui,sans-serif;
+    --hand:'Caveat',cursive;
+    --vh:var(--violation-high,#C4453A);--vh-bg:rgba(196,69,58,0.06);
+    --vm:var(--violation-med,#B8863A);--vm-bg:rgba(184,134,58,0.06);
+    --ok:#5A8A5E;
+  }
 
-  .main { display: flex; height: calc(100vh - 73px); }
+  body{font-family:var(--sans);background:var(--bg);color:var(--text-primary);-webkit-font-smoothing:antialiased;}
 
-  .plan-area { flex: 1; position: relative; background: #1a1d28; overflow: hidden; }
-  .plan-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+  /* ── Header ── */
+  .header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid rgba(30,30,28,0.08);background:var(--card);}
+  .logo{display:flex;align-items:baseline;gap:10px;}
+  .logo-mark{font-family:var(--serif);font-size:20px;font-weight:600;color:var(--text-primary);letter-spacing:-0.5px;}
+  .logo-divider{width:1px;height:14px;background:var(--text-muted);align-self:center;}
+  .logo-label{font-family:var(--sans);font-size:9px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--text-muted);}
+  .header-meta{display:flex;gap:20px;font-size:11px;color:var(--text-secondary);}
+  .header-meta .label{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);font-weight:500;margin-right:4px;}
 
-  svg { filter: drop-shadow(0 4px 20px rgba(0,0,0,0.3)); }
+  /* ── Layout ── */
+  .main{display:flex;height:calc(100vh - 49px);overflow:hidden;}
 
-  .sidebar { width: 380px; background: #1e2130; border-left: 1px solid #2e3142; overflow-y: auto; }
-  .sidebar-header { padding: 20px; border-bottom: 1px solid #2e3142; }
-  .sidebar-title { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 4px; }
-  .sidebar-subtitle { font-size: 12px; color: #8b8fa3; }
+  /* ── Plan ── */
+  .plan-area{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:24px;overflow:auto;min-width:0;}
+  .plan-frame{background:var(--card);border-radius:4px;box-shadow:0 2px 16px var(--shadow),0 1px 3px var(--shadow);padding:24px;position:relative;flex-shrink:0;}
+  .plan-annotation{position:absolute;top:-18px;left:24px;font-family:var(--hand);font-size:15px;color:var(--text-muted);}
 
-  .summary-bar { display: flex; gap: 8px; padding: 16px 20px; border-bottom: 1px solid #2e3142; }
-  .summary-item { flex: 1; text-align: center; padding: 10px 8px; border-radius: 8px; background: #252836; }
-  .summary-num { font-size: 22px; font-weight: 800; }
-  .summary-label { font-size: 10px; color: #8b8fa3; margin-top: 2px; }
-  .danger .summary-num { color: #ff4757; }
-  .warning .summary-num { color: #ffa502; }
-  .ok .summary-num { color: #2ed573; }
+  /* SVG classes */
+  .wall{stroke:var(--text-primary);stroke-width:2.5;fill:none;}
+  .wall-inner{stroke:#C8C8C6;stroke-width:1;fill:none;}
+  .door-swing{stroke:var(--text-muted);stroke-width:0.7;fill:none;stroke-dasharray:3,2;}
+  .window-mark{stroke:var(--accent);stroke-width:2.5;}
+  .room-label{font-family:var(--sans);font-size:11px;fill:var(--text-secondary);font-weight:500;letter-spacing:0.5px;}
+  .room-area{font-family:var(--sans);font-size:9px;fill:var(--text-muted);}
+  .grid-line{stroke:rgba(180,180,178,0.25);stroke-width:0.5;}
 
-  .issue-list { padding: 12px; }
-  .issue-card { background: #252836; border-radius: 10px; padding: 16px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
-  .issue-card:hover { border-color: #4a7cff; transform: translateY(-1px); }
-  .issue-card.active { border-color: #ff4757; background: #2a1f2f; }
+  .violation-zone-high{fill:#C4453A;opacity:0.08;transition:opacity 0.3s;}
+  .violation-zone-med{fill:#B8863A;opacity:0.07;transition:opacity 0.3s;}
+  .violation-zone-high.active{opacity:0.18;}
+  .violation-zone-med.active{opacity:0.15;}
 
-  .issue-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .severity { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .severity.high { background: #ff4757; box-shadow: 0 0 8px rgba(255,71,87,0.5); }
-  .severity.medium { background: #ffa502; box-shadow: 0 0 8px rgba(255,165,2,0.4); }
-  .severity.low { background: #2ed573; }
-  .issue-title { font-size: 13px; font-weight: 600; color: #fff; }
+  @keyframes soft-pulse-high{0%,100%{opacity:0.06;}50%{opacity:0.25;}}
+  @keyframes soft-pulse-med{0%,100%{opacity:0.05;}50%{opacity:0.22;}}
+  .violation-zone-high.pulse{animation:soft-pulse-high 2s ease-in-out infinite;}
+  .violation-zone-med.pulse{animation:soft-pulse-med 2.5s ease-in-out infinite;}
 
-  .issue-body { font-size: 12px; color: #a0a3b1; line-height: 1.6; }
-  .issue-rule { display: inline-block; background: #1a1d28; color: #4a7cff; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin: 4px 4px 4px 0; font-weight: 600; }
+  .marker-circle-high{fill:none;stroke:#C4453A;stroke-width:1.5;cursor:pointer;transition:all 0.25s;}
+  .marker-circle-med{fill:none;stroke:#B8863A;stroke-width:1.5;cursor:pointer;transition:all 0.25s;}
+  .marker-circle-high:hover,.marker-circle-high.active{fill:rgba(196,69,58,0.12);stroke-width:2;}
+  .marker-circle-med:hover,.marker-circle-med.active{fill:rgba(184,134,58,0.12);stroke-width:2;}
+  .violation-marker{font-family:var(--serif);font-size:12px;font-weight:600;pointer-events:none;}
+  .marker-text-high{fill:#C4453A;}
+  .marker-text-med{fill:#B8863A;}
 
-  .trace-chain { margin-top: 10px; padding: 10px; background: #1a1d28; border-radius: 8px; border-left: 3px solid #4a7cff; }
-  .trace-title { font-size: 11px; font-weight: 700; color: #4a7cff; margin-bottom: 6px; letter-spacing: 0.5px; }
-  .trace-step { font-size: 11px; color: #c0c3d1; padding: 2px 0; display: flex; align-items: flex-start; gap: 6px; }
-  .trace-arrow { color: #4a7cff; flex-shrink: 0; }
+  .dim-violation{stroke:#C4453A;stroke-width:0.8;}
+  .dim-violation-text{font-family:var(--sans);font-size:8px;fill:#C4453A;font-weight:600;}
+  .dim-required-text{font-family:var(--sans);font-size:7px;fill:var(--text-muted);}
+  .compass-text{font-family:var(--serif);font-size:10px;fill:var(--text-muted);font-weight:600;}
+  .scale-text{font-family:var(--sans);font-size:8px;fill:var(--text-muted);}
+  .entrance-label{font-family:var(--sans);font-size:9px;fill:var(--accent);font-weight:600;letter-spacing:2px;text-transform:uppercase;}
 
-  .fix-suggestion { margin-top: 8px; padding: 8px 10px; background: rgba(46,213,115,0.08); border-radius: 6px; border: 1px solid rgba(46,213,115,0.2); }
-  .fix-label { font-size: 10px; font-weight: 700; color: #2ed573; margin-bottom: 3px; letter-spacing: 0.5px; }
-  .fix-text { font-size: 11px; color: #a0d9b0; }
+  /* ── Sidebar ── */
+  .sidebar{width:400px;background:var(--card);border-left:1px solid rgba(30,30,28,0.08);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;}
+  .sidebar-head{padding:20px 24px 16px;border-bottom:1px solid rgba(30,30,28,0.06);}
+  .sidebar-title{font-family:var(--serif);font-size:18px;font-weight:600;margin-bottom:3px;}
+  .sidebar-sub{font-family:var(--hand);font-size:14px;color:var(--text-muted);}
 
-  /* Blinking animation for violations */
-  @keyframes pulse-red { 0%,100%{ opacity:0.25; } 50%{ opacity:0.5; } }
-  @keyframes pulse-orange { 0%,100%{ opacity:0.2; } 50%{ opacity:0.4; } }
-  .violation-high { animation: pulse-red 2s ease-in-out infinite; }
-  .violation-medium { animation: pulse-orange 2.5s ease-in-out infinite; }
+  .summary{display:flex;gap:10px;padding:14px 24px;border-bottom:1px solid rgba(30,30,28,0.06);}
+  .pill{flex:1;text-align:center;padding:10px 6px;border-radius:6px;background:var(--bg);}
+  .pill-num{font-family:var(--serif);font-size:22px;font-weight:600;line-height:1;}
+  .pill-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);margin-top:3px;font-weight:500;}
+  .pill.high .pill-num{color:#C4453A;}
+  .pill.med .pill-num{color:#B8863A;}
+  .pill.ok .pill-num{color:#5A8A5E;}
 
-  /* Tooltip */
-  .plan-label { font-size: 10px; fill: #8b8fa3; font-family: 'Segoe UI', sans-serif; }
-  .plan-label-room { font-size: 11px; fill: #c0c3d1; font-family: 'Segoe UI', sans-serif; font-weight: 600; }
-  .dim-line { stroke: #555; stroke-width: 0.5; stroke-dasharray: 3,3; }
-  .dim-text { font-size: 8px; fill: #888; font-family: 'Segoe UI', sans-serif; }
+  .issues{padding:12px;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+
+  .issue{background:var(--bg);border-radius:6px;padding:16px;margin-bottom:10px;border:1.5px solid transparent;cursor:pointer;transition:all 0.3s;}
+  .issue:hover{border-color:rgba(30,30,28,0.12);box-shadow:0 2px 8px var(--shadow);}
+  .issue.active-high{border-color:#C4453A;background:rgba(196,69,58,0.06);box-shadow:0 4px 20px rgba(196,69,58,0.12),0 1px 4px rgba(196,69,58,0.08);}
+  .issue.active-med{border-color:#B8863A;background:rgba(184,134,58,0.06);box-shadow:0 4px 20px rgba(184,134,58,0.12),0 1px 4px rgba(184,134,58,0.08);}
+  .issue.dimmed{opacity:0.45;transform:scale(0.98);}
+
+  .issue-head{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+  .issue-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:transform 0.2s;}
+  .issue-dot.high{background:#C4453A;}
+  .issue-dot.med{background:#B8863A;}
+  .issue.active-high .issue-dot,.issue.active-med .issue-dot{transform:scale(1.4);}
+
+  .issue-name{font-family:var(--serif);font-size:14px;font-weight:600;}
+  .issue-num{font-family:var(--serif);font-size:12px;font-weight:600;color:var(--text-muted);min-width:16px;}
+
+  .issue-body{overflow:hidden;}
+
+  .issue-desc{font-size:12px;color:var(--text-secondary);line-height:1.7;margin-bottom:10px;}
+  .rule-tag{display:inline-block;font-size:10px;font-weight:500;letter-spacing:0.3px;color:var(--text-secondary);background:var(--card);border:1px solid rgba(30,30,28,0.08);padding:3px 8px;border-radius:3px;margin:2px 4px 2px 0;}
+
+  .trace{margin-top:12px;padding:14px 14px 14px 16px;background:var(--card);border-radius:5px;border-left:2px solid var(--accent);}
+  .trace-title{font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;}
+  .trace-step{font-size:11px;color:var(--text-secondary);padding:2px 0;display:flex;align-items:flex-start;gap:8px;line-height:1.5;opacity:1;transform:translateX(0);transition:all 0.25s;}
+  .trace-arrow{color:var(--text-muted);flex-shrink:0;font-size:10px;line-height:1.7;}
+  .trace-highlight-high{color:#C4453A;font-weight:600;}
+  .trace-highlight-med{color:#B8863A;font-weight:600;}
+
+  .fix{margin-top:10px;padding:10px 12px;background:rgba(90,138,94,0.04);border-radius:4px;border:1px solid rgba(90,138,94,0.12);}
+  .fix-label{font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:#5A8A5E;margin-bottom:3px;}
+  .fix-text{font-size:11px;color:var(--text-secondary);line-height:1.6;}
+
+  /* ── Mobile toggle (hidden) ── */
+  .mobile-toggle{display:none!important;}
+
+  /* ── Responsive ── */
+  @media(max-width:860px){
+    .header{flex-direction:column;gap:8px;align-items:flex-start;padding:12px 16px;}
+    .header-meta{flex-wrap:wrap;gap:12px;font-size:10px;}
+    .main{flex-direction:column;height:auto;overflow:auto;}
+    .plan-area{min-height:auto;padding:16px;}
+    .plan-frame{padding:16px;}
+    .plan-frame svg{width:100%;height:auto;}
+    .plan-annotation{top:-15px;left:16px;font-size:13px;}
+    .sidebar{width:100%;border-left:none;border-top:1px solid rgba(30,30,28,0.08);overflow:visible;max-height:none;}
+    .issues{overflow:visible;}
+  }
+
+  @media(max-width:480px){
+    .header-meta{gap:8px;}
+    .header-meta span{font-size:9px;}
+    .logo-mark{font-size:17px;}
+    .plan-area{padding:10px;}
+    .plan-frame{padding:10px;}
+    .sidebar-head{padding:16px 16px 12px;}
+    .issues{padding:8px;}
+    .issue{padding:14px;}
+    .summary{padding:10px 16px;gap:8px;}
+    .pill{padding:8px 4px;}
+    .pill-num{font-size:18px;}
+  }
 </style>
 </head>
 <body>
 
 <div class="header">
   <div class="logo">
-    <div class="logo-icon">H</div>
-    <div>
-      <div class="logo-text">HanopaLer</div>
-      <div class="logo-sub">AI PERMIT RISK ENGINE</div>
-    </div>
+    <span class="logo-mark">HanopaLer</span>
+    <div class="logo-divider"></div>
+    <span class="logo-label">Permit Risk Engine</span>
   </div>
-  <div class="header-info">
-    <span>근린생활시설 (2종)</span>
-    <span>대지면적: 248.5m2</span>
-    <span>연면적: 496.2m2</span>
-    <span>검토일: 2026.03.24</span>
+  <div class="header-meta">
+    <span><span class="label">Type</span>근린생활시설 2종</span>
+    <span><span class="label">Site</span>248.5 m²</span>
+    <span><span class="label">GFA</span>496.2 m²</span>
+    <span><span class="label">Date</span>2026. 03. 24</span>
   </div>
 </div>
 
-<div class="main">
+<div class="main" id="main">
   <div class="plan-area">
-    <div class="plan-container">
-      <svg width="620" height="480" viewBox="0 0 620 480">
-        <!-- Background -->
-        <rect x="0" y="0" width="620" height="480" fill="#1a1d28"/>
-
-        <!-- Grid (subtle) -->
+    <div class="plan-frame">
+      <div class="plan-annotation">1F plan — reviewed</div>
+      <svg viewBox="0 0 560 420" width="560" height="420">
         <defs>
-          <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#252836" stroke-width="0.5"/>
+          <pattern id="g" width="20" height="20" patternUnits="userSpaceOnUse">
+            <line x1="20" y1="0" x2="20" y2="20" class="grid-line"/>
+            <line x1="0" y1="20" x2="20" y2="20" class="grid-line"/>
           </pattern>
         </defs>
-        <rect x="0" y="0" width="620" height="480" fill="url(#grid)"/>
+        <rect width="560" height="420" fill="var(--bg)"/>
+        <rect width="560" height="420" fill="url(#g)"/>
 
-        <!-- ═══ Building Outline ═══ -->
-        <rect x="60" y="40" width="500" height="400" fill="none" stroke="#4a5568" stroke-width="2.5" rx="2"/>
+        <!-- Building -->
+        <rect x="40" y="30" width="480" height="360" class="wall" rx="1"/>
 
-        <!-- ═══ Rooms ═══ -->
-        <!-- Corridor (문제 영역 - 폭 미달) -->
-        <rect x="230" y="40" width="100" height="400" fill="none" stroke="#4a5568" stroke-width="1.5"/>
-        <!-- VIOLATION HIGHLIGHT - Corridor -->
-        <rect x="230" y="40" width="100" height="400" fill="#ff4757" class="violation-high" rx="2"/>
+        <!-- Corridor walls -->
+        <line x1="210" y1="30" x2="210" y2="390" class="wall" style="stroke-width:1.8"/>
+        <line x1="300" y1="30" x2="300" y2="390" class="wall" style="stroke-width:1.8"/>
 
-        <!-- Room 1 - 사무실 1 -->
-        <rect x="60" y="40" width="170" height="200" fill="none" stroke="#4a5568" stroke-width="1.5"/>
-
-        <!-- Room 2 - 사무실 2 -->
-        <rect x="60" y="240" width="170" height="200" fill="none" stroke="#4a5568" stroke-width="1.5"/>
-
-        <!-- Room 3 - 상가 1 -->
-        <rect x="330" y="40" width="230" height="200" fill="none" stroke="#4a5568" stroke-width="1.5"/>
-
-        <!-- Room 4 - 상가 2 -->
-        <rect x="330" y="240" width="230" height="200" fill="none" stroke="#4a5568" stroke-width="1.5"/>
+        <!-- Room dividers -->
+        <line x1="40" y1="210" x2="210" y2="210" class="wall-inner"/>
+        <line x1="300" y1="210" x2="520" y2="210" class="wall-inner"/>
 
         <!-- Staircase -->
-        <rect x="330" y="160" width="80" height="80" fill="none" stroke="#4a5568" stroke-width="1.5"/>
-        <!-- VIOLATION HIGHLIGHT - Staircase width -->
-        <rect x="330" y="160" width="80" height="80" fill="#ffa502" class="violation-medium" rx="2"/>
-        <!-- Stair lines -->
-        <line x1="335" y1="170" x2="405" y2="170" stroke="#555" stroke-width="0.5"/>
-        <line x1="335" y1="180" x2="405" y2="180" stroke="#555" stroke-width="0.5"/>
-        <line x1="335" y1="190" x2="405" y2="190" stroke="#555" stroke-width="0.5"/>
-        <line x1="335" y1="200" x2="405" y2="200" stroke="#555" stroke-width="0.5"/>
-        <line x1="335" y1="210" x2="405" y2="210" stroke="#555" stroke-width="0.5"/>
-        <line x1="335" y1="220" x2="405" y2="220" stroke="#555" stroke-width="0.5"/>
-        <line x1="335" y1="230" x2="405" y2="230" stroke="#555" stroke-width="0.5"/>
+        <rect x="300" y="140" width="76" height="76" class="wall-inner"/>
 
-        <!-- Entrance -->
-        <rect x="255" y="430" width="50" height="10" fill="#4a7cff" rx="2"/>
-        <text x="280" y="458" text-anchor="middle" class="plan-label" fill="#4a7cff" font-weight="600">ENTRANCE</text>
+        <!-- ═══ Violation Zones ═══ -->
+        <rect id="zone1" x="210" y="30" width="90" height="360" class="violation-zone-high pulse" rx="1" data-issue="0"/>
+        <rect id="zone2" x="300" y="140" width="76" height="76" class="violation-zone-med pulse" rx="1" data-issue="1"/>
+        <rect id="zone3" x="370" y="380" width="110" height="10" class="violation-zone-med pulse" rx="1" data-issue="2"/>
 
-        <!-- Door openings -->
-        <!-- Door to Room 1 -->
-        <line x1="230" y1="120" x2="230" y2="155" stroke="#1a1d28" stroke-width="3"/>
-        <path d="M 230 120 Q 210 137 230 155" fill="none" stroke="#6c7a89" stroke-width="0.8" stroke-dasharray="3,2"/>
-        <!-- Door to Room 2 -->
-        <line x1="230" y1="310" x2="230" y2="345" stroke="#1a1d28" stroke-width="3"/>
-        <path d="M 230 310 Q 210 327 230 345" fill="none" stroke="#6c7a89" stroke-width="0.8" stroke-dasharray="3,2"/>
-        <!-- Door to Room 3 -->
-        <line x1="330" y1="80" x2="330" y2="115" stroke="#1a1d28" stroke-width="3"/>
-        <path d="M 330 80 Q 350 97 330 115" fill="none" stroke="#6c7a89" stroke-width="0.8" stroke-dasharray="3,2"/>
-        <!-- Door to Room 4 -->
-        <line x1="330" y1="310" x2="330" y2="345" stroke="#1a1d28" stroke-width="3"/>
-        <path d="M 330 310 Q 350 327 330 345" fill="none" stroke="#6c7a89" stroke-width="0.8" stroke-dasharray="3,2"/>
-
-        <!-- Windows -->
-        <line x1="100" y1="40" x2="170" y2="40" stroke="#4a7cff" stroke-width="3"/>
-        <line x1="100" y1="440" x2="170" y2="440" stroke="#4a7cff" stroke-width="3"/>
-        <line x1="400" y1="40" x2="500" y2="40" stroke="#4a7cff" stroke-width="3"/>
-        <!-- VIOLATION - Window -->
-        <rect x="390" y="430" width="120" height="20" fill="#ffa502" class="violation-medium" rx="2"/>
-        <line x1="400" y1="440" x2="500" y2="440" stroke="#4a7cff" stroke-width="3"/>
-
-        <!-- ═══ Room Labels ═══ -->
-        <text x="145" y="145" text-anchor="middle" class="plan-label-room">사무실 1</text>
-        <text x="145" y="162" text-anchor="middle" class="plan-label">32.5 m2</text>
-
-        <text x="145" y="345" text-anchor="middle" class="plan-label-room">사무실 2</text>
-        <text x="145" y="362" text-anchor="middle" class="plan-label">32.5 m2</text>
-
-        <text x="445" y="125" text-anchor="middle" class="plan-label-room">상가 1</text>
-        <text x="445" y="142" text-anchor="middle" class="plan-label">55.2 m2</text>
-
-        <text x="445" y="345" text-anchor="middle" class="plan-label-room">상가 2</text>
-        <text x="445" y="362" text-anchor="middle" class="plan-label">52.8 m2</text>
-
-        <text x="280" y="225" text-anchor="middle" class="plan-label-room" fill="#ff8a8a">복도</text>
-        <text x="280" y="242" text-anchor="middle" class="plan-label" fill="#ff8a8a">폭: 1.1m</text>
-
-        <text x="370" y="198" text-anchor="middle" class="plan-label-room" fill="#ffc875">계단실</text>
-        <text x="370" y="213" text-anchor="middle" class="plan-label" fill="#ffc875">폭: 1.0m</text>
-
-        <!-- ═══ Dimension Lines ═══ -->
-        <!-- Corridor width dimension -->
-        <line x1="230" y1="25" x2="230" y2="35" class="dim-line"/>
-        <line x1="330" y1="25" x2="330" y2="35" class="dim-line"/>
-        <line x1="233" y1="30" x2="327" y2="30" stroke="#ff4757" stroke-width="1"/>
-        <polygon points="233,28 233,32 230,30" fill="#ff4757"/>
-        <polygon points="327,28 327,32 330,30" fill="#ff4757"/>
-        <rect x="258" y="18" width="44" height="14" rx="3" fill="#ff4757"/>
-        <text x="280" y="28" text-anchor="middle" font-size="9" fill="white" font-family="Segoe UI" font-weight="700">1,100</text>
-
-        <!-- Required dimension -->
-        <text x="280" y="14" text-anchor="middle" font-size="8" fill="#ff8a8a" font-family="Segoe UI">(기준: 1,200 이상)</text>
-
-        <!-- ═══ Violation Markers ═══ -->
-        <!-- Marker 1 - Corridor -->
-        <circle cx="280" cy="270" r="14" fill="#ff4757" opacity="0.9"/>
-        <text x="280" y="274" text-anchor="middle" font-size="12" fill="white" font-weight="800" font-family="Segoe UI">1</text>
-
-        <!-- Marker 2 - Staircase -->
-        <circle cx="370" cy="230" r="14" fill="#ffa502" opacity="0.9"/>
-        <text x="370" y="234" text-anchor="middle" font-size="12" fill="white" font-weight="800" font-family="Segoe UI">2</text>
-
-        <!-- Marker 3 - Window -->
-        <circle cx="450" cy="440" r="14" fill="#ffa502" opacity="0.9"/>
-        <text x="450" y="444" text-anchor="middle" font-size="12" fill="white" font-weight="800" font-family="Segoe UI">3</text>
-
-        <!-- North arrow -->
-        <g transform="translate(575, 60)">
-          <circle cx="0" cy="0" r="18" fill="#252836" stroke="#4a5568" stroke-width="1"/>
-          <polygon points="0,-12 -5,4 0,-2 5,4" fill="#4a7cff"/>
-          <text x="0" y="10" text-anchor="middle" font-size="8" fill="#8b8fa3" font-family="Segoe UI" font-weight="600">N</text>
+        <!-- Stair treads -->
+        <g opacity="0.3">
+          <line x1="305" y1="150" x2="371" y2="150" stroke="var(--text-muted)" stroke-width="0.5"/>
+          <line x1="305" y1="158" x2="371" y2="158" stroke="var(--text-muted)" stroke-width="0.5"/>
+          <line x1="305" y1="166" x2="371" y2="166" stroke="var(--text-muted)" stroke-width="0.5"/>
+          <line x1="305" y1="174" x2="371" y2="174" stroke="var(--text-muted)" stroke-width="0.5"/>
+          <line x1="305" y1="182" x2="371" y2="182" stroke="var(--text-muted)" stroke-width="0.5"/>
+          <line x1="305" y1="190" x2="371" y2="190" stroke="var(--text-muted)" stroke-width="0.5"/>
+          <line x1="305" y1="198" x2="371" y2="198" stroke="var(--text-muted)" stroke-width="0.5"/>
+          <line x1="305" y1="206" x2="371" y2="206" stroke="var(--text-muted)" stroke-width="0.5"/>
         </g>
 
-        <!-- Scale bar -->
-        <g transform="translate(50, 468)">
-          <line x1="0" y1="0" x2="60" y2="0" stroke="#555" stroke-width="1"/>
-          <line x1="0" y1="-3" x2="0" y2="3" stroke="#555" stroke-width="1"/>
-          <line x1="60" y1="-3" x2="60" y2="3" stroke="#555" stroke-width="1"/>
-          <text x="30" y="10" text-anchor="middle" font-size="8" fill="#666" font-family="Segoe UI">3m</text>
+        <!-- Doors -->
+        <line x1="210" y1="100" x2="210" y2="132" stroke="var(--bg)" stroke-width="3"/>
+        <path d="M210 100Q194 116 210 132" class="door-swing"/>
+        <line x1="210" y1="270" x2="210" y2="302" stroke="var(--bg)" stroke-width="3"/>
+        <path d="M210 270Q194 286 210 302" class="door-swing"/>
+        <line x1="300" y1="70" x2="300" y2="102" stroke="var(--bg)" stroke-width="3"/>
+        <path d="M300 70Q316 86 300 102" class="door-swing"/>
+        <line x1="300" y1="270" x2="300" y2="302" stroke="var(--bg)" stroke-width="3"/>
+        <path d="M300 270Q316 286 300 302" class="door-swing"/>
+
+        <!-- Windows -->
+        <line x1="80" y1="30" x2="155" y2="30" class="window-mark"/>
+        <line x1="80" y1="390" x2="155" y2="390" class="window-mark"/>
+        <line x1="370" y1="30" x2="470" y2="30" class="window-mark"/>
+        <line x1="370" y1="390" x2="470" y2="390" class="window-mark"/>
+
+        <!-- Room labels -->
+        <text x="125" y="122" text-anchor="middle" class="room-label">사무실 1</text>
+        <text x="125" y="136" text-anchor="middle" class="room-area">32.5 m²</text>
+        <text x="125" y="305" text-anchor="middle" class="room-label">사무실 2</text>
+        <text x="125" y="319" text-anchor="middle" class="room-area">32.5 m²</text>
+        <text x="420" y="110" text-anchor="middle" class="room-label">상가 1</text>
+        <text x="420" y="124" text-anchor="middle" class="room-area">55.2 m²</text>
+        <text x="420" y="310" text-anchor="middle" class="room-label">상가 2</text>
+        <text x="420" y="324" text-anchor="middle" class="room-area">52.8 m²</text>
+        <text x="255" y="205" text-anchor="middle" class="room-label" fill="#C4453A" style="font-size:10px">복도</text>
+        <text x="255" y="218" text-anchor="middle" class="room-area" fill="#C4453A">w 1,100</text>
+        <text x="338" y="178" text-anchor="middle" class="room-label" fill="#B8863A" style="font-size:10px">계단실</text>
+        <text x="338" y="191" text-anchor="middle" class="room-area" fill="#B8863A">w 1,000</text>
+
+        <!-- Entrance -->
+        <rect x="237" y="385" width="36" height="5" fill="var(--accent)" rx="1.5"/>
+        <text x="255" y="408" text-anchor="middle" class="entrance-label">entrance</text>
+
+        <!-- Corridor dimension -->
+        <line x1="210" y1="18" x2="210" y2="26" class="dim-violation"/>
+        <line x1="300" y1="18" x2="300" y2="26" class="dim-violation"/>
+        <line x1="213" y1="22" x2="297" y2="22" class="dim-violation"/>
+        <polygon points="213,20.5 213,23.5 210,22" fill="#C4453A"/>
+        <polygon points="297,20.5 297,23.5 300,22" fill="#C4453A"/>
+        <text x="255" y="16" text-anchor="middle" class="dim-violation-text">1,100</text>
+        <text x="255" y="8" text-anchor="middle" class="dim-required-text">req. ≥ 1,200</text>
+
+        <!-- Markers (clickable) -->
+        <g class="marker-group" data-issue="0" style="cursor:pointer">
+          <circle cx="255" cy="248" r="12" class="marker-circle-high" id="marker0"/>
+          <text x="255" y="252" text-anchor="middle" class="violation-marker marker-text-high">1</text>
+        </g>
+        <g class="marker-group" data-issue="1" style="cursor:pointer">
+          <circle cx="338" cy="224" r="12" class="marker-circle-med" id="marker1"/>
+          <text x="338" y="228" text-anchor="middle" class="violation-marker marker-text-med">2</text>
+        </g>
+        <g class="marker-group" data-issue="2" style="cursor:pointer">
+          <circle cx="425" cy="380" r="12" class="marker-circle-med" id="marker2"/>
+          <text x="425" y="384" text-anchor="middle" class="violation-marker marker-text-med">3</text>
+        </g>
+
+        <!-- Compass -->
+        <g transform="translate(515,50)">
+          <circle cx="0" cy="0" r="14" fill="none" stroke="var(--text-muted)" stroke-width="0.7"/>
+          <polygon points="0,-9 -3.5,3 0,0 3.5,3" fill="var(--accent)"/>
+          <text x="0" y="9" text-anchor="middle" class="compass-text">N</text>
+        </g>
+
+        <!-- Scale -->
+        <g transform="translate(40,412)">
+          <line x1="0" y1="0" x2="48" y2="0" stroke="var(--text-muted)" stroke-width="0.8"/>
+          <line x1="0" y1="-3" x2="0" y2="3" stroke="var(--text-muted)" stroke-width="0.8"/>
+          <line x1="48" y1="-3" x2="48" y2="3" stroke="var(--text-muted)" stroke-width="0.8"/>
+          <text x="24" y="11" text-anchor="middle" class="scale-text">3 m</text>
         </g>
       </svg>
     </div>
   </div>
 
   <div class="sidebar">
-    <div class="sidebar-header">
-      <div class="sidebar-title">AI 인허가 사전검토 결과</div>
-      <div class="sidebar-subtitle">HanopaLer Engine v0.1 | 검토 소요시간: 8초</div>
+    <div class="sidebar-head">
+      <div class="sidebar-title">인허가 사전검토 결과</div>
+      <div class="sidebar-sub">reviewed in 8 seconds</div>
     </div>
 
-    <div class="summary-bar">
-      <div class="summary-item danger">
-        <div class="summary-num">1</div>
-        <div class="summary-label">위반 (HIGH)</div>
-      </div>
-      <div class="summary-item warning">
-        <div class="summary-num">2</div>
-        <div class="summary-label">주의 (MED)</div>
-      </div>
-      <div class="summary-item ok">
-        <div class="summary-num">14</div>
-        <div class="summary-label">적합 (OK)</div>
-      </div>
+    <div class="summary">
+      <div class="pill high"><div class="pill-num">1</div><div class="pill-label">Violation</div></div>
+      <div class="pill med"><div class="pill-num">2</div><div class="pill-label">Caution</div></div>
+      <div class="pill ok"><div class="pill-num">14</div><div class="pill-label">Passed</div></div>
     </div>
 
-    <div class="issue-list">
+    <div class="issues" id="issues">
       <!-- Issue 1 -->
-      <div class="issue-card active">
-        <div class="issue-header">
-          <div class="severity high"></div>
-          <div class="issue-title">1 복도 유효 폭 미달</div>
+      <div class="issue" data-index="0">
+        <div class="issue-head">
+          <span class="issue-num">1</span>
+          <div class="issue-dot high"></div>
+          <div class="issue-name">복도 유효 폭 미달</div>
         </div>
         <div class="issue-body">
-          양측에 거실이 있는 복도의 유효 폭이 기준치에 미달합니다.
-          <br><br>
-          <span class="issue-rule">건축법 시행령 제48조</span>
-          <span class="issue-rule">피난규칙 제15조의2</span>
-
-          <div class="trace-chain">
-            <div class="trace-title">근거 추적 (TRACE)</div>
-            <div class="trace-step"><span class="trace-arrow">></span> 건축물 용도: 근린생활시설 (2종)</div>
-            <div class="trace-step"><span class="trace-arrow">></span> 적용 규정: 피난규칙 제15조의2 제1항</div>
-            <div class="trace-step"><span class="trace-arrow">></span> 대상 객체: 1층 중앙 복도</div>
-            <div class="trace-step"><span class="trace-arrow">></span> 조건: 양측에 거실이 있는 복도</div>
-            <div class="trace-step"><span class="trace-arrow">></span> 기준값: 1,200mm 이상</div>
-            <div class="trace-step"><span class="trace-arrow">></span> <b style="color:#ff4757">현재값: 1,100mm (100mm 미달)</b></div>
+          <div class="issue-desc">양측에 거실이 있는 복도의 유효 폭이 기준치에 미달합니다.</div>
+          <span class="rule-tag">건축법 시행령 제48조</span>
+          <span class="rule-tag">피난규칙 제15조의2</span>
+          <div class="trace">
+            <div class="trace-title">Trace</div>
+            <div class="trace-step" style="transition-delay:0.05s"><span class="trace-arrow">→</span>건축물 용도: 근린생활시설 (2종)</div>
+            <div class="trace-step" style="transition-delay:0.1s"><span class="trace-arrow">→</span>적용 규정: 피난규칙 제15조의2 제1항</div>
+            <div class="trace-step" style="transition-delay:0.15s"><span class="trace-arrow">→</span>대상 객체: 1층 중앙 복도</div>
+            <div class="trace-step" style="transition-delay:0.2s"><span class="trace-arrow">→</span>조건: 양측에 거실이 있는 복도</div>
+            <div class="trace-step" style="transition-delay:0.25s"><span class="trace-arrow">→</span>기준값: 1,200mm 이상</div>
+            <div class="trace-step" style="transition-delay:0.3s"><span class="trace-arrow">→</span><span class="trace-highlight-high">현재값: 1,100mm — 100mm 미달</span></div>
           </div>
-
-          <div class="fix-suggestion">
-            <div class="fix-label">수정 대안</div>
-            <div class="fix-text">복도 폭 +100mm 확장 (양측 벽체 각 50mm 후퇴) 또는 한쪽 거실 벽체 100mm 후퇴</div>
+          <div class="fix">
+            <div class="fix-label">Suggestion</div>
+            <div class="fix-text">복도 폭 +100mm 확장. 양측 벽체 각 50mm 후퇴 또는 한쪽 거실 벽체 100mm 후퇴.</div>
           </div>
         </div>
       </div>
 
       <!-- Issue 2 -->
-      <div class="issue-card">
-        <div class="issue-header">
-          <div class="severity medium"></div>
-          <div class="issue-title">2 계단실 유효 폭 확인 필요</div>
+      <div class="issue" data-index="1">
+        <div class="issue-head">
+          <span class="issue-num">2</span>
+          <div class="issue-dot med"></div>
+          <div class="issue-name">계단실 유효 폭 확인 필요</div>
         </div>
         <div class="issue-body">
-          계단 및 계단참의 유효 폭이 권장 기준에 미달할 수 있습니다.
-          <br><br>
-          <span class="issue-rule">건축법 시행령 제48조</span>
-          <span class="issue-rule">피난규칙 제15조</span>
-
-          <div class="trace-chain">
-            <div class="trace-title">근거 추적 (TRACE)</div>
-            <div class="trace-step"><span class="trace-arrow">></span> 건축물 용도: 근린생활시설</div>
-            <div class="trace-step"><span class="trace-arrow">></span> 적용 규정: 피난규칙 제15조 제1항</div>
-            <div class="trace-step"><span class="trace-arrow">></span> 대상 객체: 중앙 계단실</div>
-            <div class="trace-step"><span class="trace-arrow">></span> 기준값: 1,200mm 이상 (권장)</div>
-            <div class="trace-step"><span class="trace-arrow">></span> <b style="color:#ffa502">현재값: 1,000mm (확인 필요)</b></div>
+          <div class="issue-desc">계단 및 계단참의 유효 폭이 권장 기준에 미달할 수 있습니다.</div>
+          <span class="rule-tag">건축법 시행령 제48조</span>
+          <span class="rule-tag">피난규칙 제15조</span>
+          <div class="trace">
+            <div class="trace-title">Trace</div>
+            <div class="trace-step" style="transition-delay:0.05s"><span class="trace-arrow">→</span>건축물 용도: 근린생활시설</div>
+            <div class="trace-step" style="transition-delay:0.1s"><span class="trace-arrow">→</span>적용 규정: 피난규칙 제15조 제1항</div>
+            <div class="trace-step" style="transition-delay:0.15s"><span class="trace-arrow">→</span>대상 객체: 중앙 계단실</div>
+            <div class="trace-step" style="transition-delay:0.2s"><span class="trace-arrow">→</span>기준값: 1,200mm 이상 (권장)</div>
+            <div class="trace-step" style="transition-delay:0.25s"><span class="trace-arrow">→</span><span class="trace-highlight-med">현재값: 1,000mm — 확인 필요</span></div>
           </div>
-
-          <div class="fix-suggestion">
-            <div class="fix-label">수정 대안</div>
-            <div class="fix-text">계단실 폭 200mm 확장 또는 우회 피난경로 확보 여부 확인</div>
+          <div class="fix">
+            <div class="fix-label">Suggestion</div>
+            <div class="fix-text">계단실 폭 200mm 확장 또는 우회 피난경로 확보 여부 확인.</div>
           </div>
         </div>
       </div>
 
       <!-- Issue 3 -->
-      <div class="issue-card">
-        <div class="issue-header">
-          <div class="severity medium"></div>
-          <div class="issue-title">3 채광 면적 확인 필요 (상가2)</div>
+      <div class="issue" data-index="2">
+        <div class="issue-head">
+          <span class="issue-num">3</span>
+          <div class="issue-dot med"></div>
+          <div class="issue-name">채광 면적 확인 필요 — 상가 2</div>
         </div>
         <div class="issue-body">
-          상가2 남측 개구부의 채광 면적이 바닥면적 대비 기준에 미달할 수 있습니다.
-          <br><br>
-          <span class="issue-rule">건축법 제49조</span>
-          <span class="issue-rule">건축물의 설비기준 등에 관한 규칙 제17조</span>
-
-          <div class="trace-chain">
-            <div class="trace-title">근거 추적 (TRACE)</div>
-            <div class="trace-step"><span class="trace-arrow">></span> 대상 실: 상가2 (52.8m2)</div>
-            <div class="trace-step"><span class="trace-arrow">></span> 기준: 바닥면적의 1/10 이상 = 5.28m2</div>
-            <div class="trace-step"><span class="trace-arrow">></span> <b style="color:#ffa502">남측 창 면적: 약 4.8m2 (추정, 확인 필요)</b></div>
+          <div class="issue-desc">상가2 남측 개구부의 채광 면적이 바닥면적 대비 기준에 미달할 수 있습니다.</div>
+          <span class="rule-tag">건축법 제49조</span>
+          <span class="rule-tag">설비기준 규칙 제17조</span>
+          <div class="trace">
+            <div class="trace-title">Trace</div>
+            <div class="trace-step" style="transition-delay:0.05s"><span class="trace-arrow">→</span>대상 실: 상가2 (52.8 m²)</div>
+            <div class="trace-step" style="transition-delay:0.1s"><span class="trace-arrow">→</span>기준: 바닥면적의 1/10 이상 = 5.28 m²</div>
+            <div class="trace-step" style="transition-delay:0.15s"><span class="trace-arrow">→</span><span class="trace-highlight-med">남측 창 면적: 약 4.8 m² (추정, 확인 필요)</span></div>
           </div>
-
-          <div class="fix-suggestion">
-            <div class="fix-label">수정 대안</div>
-            <div class="fix-text">남측 개구부 면적 확대 또는 추가 채광창 설치</div>
+          <div class="fix">
+            <div class="fix-label">Suggestion</div>
+            <div class="fix-text">남측 개구부 면적 확대 또는 추가 채광창 설치.</div>
           </div>
         </div>
       </div>
@@ -337,5 +381,75 @@
   </div>
 </div>
 
+<!-- Mobile toggle -->
+<button class="mobile-toggle" id="mobileToggle" aria-label="Toggle panel">☰</button>
+
+<script>
+(function(){
+  const issues = document.querySelectorAll('.issue');
+  const zones = [document.getElementById('zone1'), document.getElementById('zone2'), document.getElementById('zone3')];
+  const markers = [document.getElementById('marker0'), document.getElementById('marker1'), document.getElementById('marker2')];
+  const markerGroups = document.querySelectorAll('.marker-group');
+  const activeClasses = ['active-high','active-med'];
+  let currentIdx = -1;
+
+  function selectIssue(idx){
+    // Toggle off if clicking same card again
+    if(currentIdx === idx){ idx = -1; }
+    currentIdx = idx;
+
+    issues.forEach((el,i)=>{
+      const isTarget = i === idx;
+      // Active highlight
+      activeClasses.forEach(c => el.classList.remove(c));
+      el.classList.remove('dimmed');
+      if(isTarget){
+        el.classList.add(i === 0 ? 'active-high' : 'active-med');
+        el.scrollIntoView({behavior:'smooth',block:'nearest'});
+      } else if(idx >= 0){
+        el.classList.add('dimmed');
+      }
+    });
+
+    // Highlight zones
+    zones.forEach((z,i)=>{
+      if(idx < 0){
+        z.classList.remove('active');
+        z.classList.add('pulse');
+      } else {
+        z.classList.toggle('active', i === idx);
+        z.classList.toggle('pulse', i !== idx);
+      }
+    });
+
+    // Highlight markers
+    markers.forEach((m,i)=>{
+      m.classList.toggle('active', i === idx);
+    });
+  }
+
+  // Click on issue cards
+  issues.forEach((el,i)=>{
+    el.addEventListener('click',()=> selectIssue(i));
+  });
+
+  // Click on SVG markers
+  markerGroups.forEach(g=>{
+    g.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      selectIssue(parseInt(g.dataset.issue));
+    });
+  });
+
+  // Click on zones
+  zones.forEach((z,i)=>{
+    z.style.cursor = 'pointer';
+    z.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      selectIssue(i);
+    });
+  });
+})();
+</script>
 </body>
 </html>
